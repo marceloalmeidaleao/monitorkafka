@@ -1,12 +1,27 @@
-FROM maven:alpine
-ENV ZK_HOSTS=kafkadev.customkafka.svc:2181 \
-    LISTEN=9000
-RUN curl -sL https://github.com/HomeAdvisor/Kafdrop/archive/master.zip > /tmp/master.zip \
-    && unzip /tmp/master.zip -d /tmp \
-    && cd /tmp/Kafdrop-master \
-    && mvn package \
-    && cp ./target/kafdrop-*.jar /usr/local/bin/kafdrop.jar \
-    && mvn clean \
-    && rm -fr /tmp/Kafdrop-master /tmp/master.zip \
-    && echo ""
-CMD java -jar /usr/local/bin/kafdrop.jar --zookeeper.connect=${ZK_HOSTS} --server.port=${LISTEN}
+version: "2"
+services:
+  kafdrop:
+    image: obsidiandynamics/kafdrop
+    restart: "no"
+    ports:
+      - "9000:9000"
+    environment:
+      KAFKA_BROKERCONNECT: "kafka:29092"
+      JVM_OPTS: "-Xms16M -Xmx48M -Xss180K -XX:-TieredCompilation -XX:+UseStringDeduplication -noverify"
+    depends_on:
+      - "kafka"
+  kafka:
+    image: obsidiandynamics/kafka
+    restart: "no"
+    ports:
+      - "2181:2181"
+      - "9092:9092"
+    environment:
+      KAFKA_LISTENERS: "INTERNAL://:29092,EXTERNAL://:9092"
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka:29092,EXTERNAL://localhost:9092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+      KAFKA_ZOOKEEPER_SESSION_TIMEOUT: "6000"
+      KAFKA_RESTART_ATTEMPTS: "10"
+      KAFKA_RESTART_DELAY: "5"
+      ZOOKEEPER_AUTOPURGE_PURGE_INTERVAL: "0"
